@@ -1,0 +1,67 @@
+clear
+clc
+
+%% Read is data set from file
+filenamework = 'work_tech.csv';
+filenamewant = 'want_tech.csv';
+workTech = readmatrix(filenamework);
+wantTech = readmatrix(filenamewant);
+
+%% Adds Zeros for NaN values and Converts Values to Percentages
+surveyRespondants = [52485,51392,98855,888883,64461,83439,73268];
+for i = 2:29
+    for j = 1:7
+        if isnan(workTech(i,j))
+            workTech(i,j) = 0;
+            wantTech(i,j) = 0;
+        end
+        wantTech(i,j) = wantTech(i,j)/surveyRespondants(j);
+        workTech(i,j) = workTech(i,j)/surveyRespondants(j);
+    end
+end
+
+%% Calculates Cross-Correlation to Find Maximum Correlation
+maxindexarray = [];
+maxLagsArray = [];
+
+for i = 2:29
+    wantTechRow = wantTech(i,2:end);
+    workTechRow = workTech(i,2:end);
+
+    [c,lags] = xcorr(wantTechRow, workTechRow);
+    stem(lags, c)
+
+    [maxc, maxCIndex] = max(c);
+    maxLagsArray = [maxLagsArray lags(maxCIndex)];
+    maxindexarray = [maxindexarray maxCIndex];
+end
+
+%% Calculating Avergae Lag
+meanLag = mean(maxLagsArray);
+
+%% Calculate Correlation Coefficient and P-Value
+% Now that cross-correlation has revealed that the maximum corrilation
+% is at time lag 0 we just need to calculate the correlation at that point
+pValues = [];
+correlationCoefficients = [];
+for i = 2:29
+    wantTechRow = wantTech(i,2:end);
+    workTechRow = workTech(i,2:end);
+
+    % Padding zeros to create offset
+    languageNumber = i-1;
+    lag = lags(maxindexarray(languageNumber));
+    absLag = abs(lag);
+    extraZeros = zeros(1,absLag);
+    wantTechRow = [extraZeros, wantTechRow];
+    workTechRow = [workTechRow, extraZeros];
+
+    [correlationCoefficient, p] = corrcoef(wantTechRow, workTechRow);
+    correlationCoefficients = [correlationCoefficients correlationCoefficient(1,2)];
+    pValues = [pValues, p(1,2)];
+end
+
+% Results
+meanCorrelationCoefficient = mean(correlationCoefficients)
+meanPValue = mean(pValues)
+meanLag
